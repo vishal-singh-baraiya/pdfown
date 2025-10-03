@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Markdown to PDF Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.3.8/dist/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --primary-light: #dbeafe;
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            --font-family: 'Inter', sans-serif;
+        }
+
+        /* Enhanced Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+            border-radius: 5px;
+            border: 2px solid #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #64748b 0%, #475569 100%);
+        }
+
+        /* Glassmorphism Header */
+        header {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        /* Button Enhancements */
+        .icon-btn {
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        .icon-btn:active {
+            transform: translateY(0);
+        }
+        .icon-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            background: #1e293b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s;
+            z-index: 100;
+        }
+        .icon-btn:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* Primary Button */
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -10px rgba(59, 130, 246, 0.5);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* Editor Textarea */
+        #markdown-input {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            line-height: 1.7;
+            transition: background-color 0.2s;
+        }
+        #markdown-input:focus {
+            background-color: #fffbf5;
+            outline: none;
+        }
+
+        /* Preview Content - Enhanced */
+        #preview-content {
+            --page-bg-color: #ffffff;
+            --text-color: #374151;
+            --heading-color: #111827;
+            --code-bg-color: #1f2937;
+            
+            background-color: var(--page-bg-color);
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: var(--text-color);
+            font-family: var(--font-family);
+            box-shadow: 
+                0 0 0 1px rgba(0, 0, 0, 0.05),
+                0 10px 40px rgba(0, 0, 0, 0.08),
+                0 4px 10px rgba(0, 0, 0, 0.04);
+            border-radius: 12px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 8.5in;
+            margin: 2rem auto;
+            min-height: 11in;
+            transition: all 0.3s ease;
+        }
+
+        #preview-content > *:first-child {
+            margin-top: 0;
+        }
+        
+        #preview-content h1, #preview-content h2, #preview-content h3, #preview-content h4, #preview-content h5, #preview-content h6 {
+            font-weight: 700;
+            margin-top: 2em;
+            margin-bottom: 0.8em;
+            line-height: 1.25;
+            color: var(--heading-color);
+            letter-spacing: -0.02em;
+        }
+        #preview-content h1 { 
+            font-size: 2.5rem; 
+            border-bottom: 3px solid var(--heading-color);
+            padding-bottom: 0.5rem;
+        }
+        #preview-content h2 { 
+            font-size: 2rem;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.4rem;
+        }
+        #preview-content h3 { font-size: 1.5rem; }
+        #preview-content h4 { font-size: 1.25rem; }
+        #preview-content p { 
+            margin-bottom: 1.25em; 
+            line-height: 1.8;
+        }
+        #preview-content a { 
+            color: #2563eb; 
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        #preview-content a:hover { 
+            border-bottom-color: #2563eb;
+        }
+        #preview-content ul, #preview-content ol { 
+            margin-left: 1.75rem; 
+            margin-bottom: 1.25em;
+            line-height: 1.8;
+        }
+        #preview-content ul { list-style-type: disc; }
+        #preview-content ol { list-style-type: decimal; }
+        #preview-content li { margin-bottom: 0.6em; }
+        #preview-content li.task-list-item { 
+            list-style-type: none;
+            margin-left: -1.75rem;
+        }
+        #preview-content input[type="checkbox"] { 
+            margin-right: 0.6em;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        #preview-content blockquote {
+            border-left: 4px solid #3b82f6;
+            background: #f8fafc;
+            padding: 1rem 1.25rem;
+            margin: 1.75em 0;
+            color: #475569;
+            font-style: italic;
+            border-radius: 0 6px 6px 0;
+        }
+        #preview-content code:not(pre > code) {
+            background-color: #fee2e2;
+            color: #dc2626;
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88em;
+            font-weight: 500;
+        }
+        #preview-content pre {
+            background-color: var(--code-bg-color);
+            padding: 1.25rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 2em 0;
+            color: #d1d5db;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        #preview-content pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        #preview-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2em 0;
+            box-shadow: var(--shadow-sm);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #preview-content th, #preview-content td {
+            border: 1px solid #e5e7eb;
+            padding: 0.9rem 1rem;
+            text-align: left;
+        }
+        #preview-content th {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            font-weight: 600;
+            color: #1e293b;
+        }
+        #preview-content tr:hover {
+            background-color: #fafbfc;
+        }
+        #preview-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 2em 0;
+            box-shadow: var(--shadow-md);
+        }
+        #preview-content hr {
+            border: none;
+            border-top: 2px solid #e5e7eb;
+            margin: 3em 0;
+        }
+
+        @media print {
+            #preview-content h1, #preview-content h2, #preview-content h3, #preview-content h4, #preview-content h5, #preview-content h6 { 
+                page-break-after: avoid; 
+            }
+            #preview-content p, #preview-content li, #preview-content pre, #preview-content blockquote, #preview-content table, #preview-content figure, #preview-content img { 
+                page-break-inside: avoid; 
+            }
+            .page-break { page-break-before: always; }
+        }
+        .page-break { page-break-before: always; }
+        
+        .pdf-export-mode {
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background-color: transparent !important; 
+            min-height: auto !important; 
+            height: auto !important;
+            max-width: 100% !important;
+        }
+        
+        .pdf-export-mode.no-grid {
+             background-image: none !important;
+        }
+
+        /* Enhanced Toast */
+        #toast {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(150%);
+            opacity: 0;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            box-shadow: var(--shadow-xl);
+        }
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Enhanced Tabs */
+        .tab-button {
+            transition: all 0.3s;
+            position: relative;
+        }
+        .tab-button.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: white;
+        }
+
+        /* Enhanced Style Panel */
+        #style-panel {
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(100%);
+            box-shadow: -20px 0 60px rgba(0, 0, 0, 0.15);
+        }
+        #style-panel.open {
+            transform: translateX(0);
+        }
+
+        #style-panel-overlay {
+            transition: opacity 0.3s;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        #style-panel-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Resizer Enhancement */
+        #resizer {
+            position: relative;
+            transition: all 0.2s;
+        }
+        #resizer::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 40px;
+            background: #cbd5e1;
+            border-radius: 2px;
+            transition: all 0.2s;
+        }
+        #resizer:hover::before {
+            background: #3b82f6;
+            height: 60px;
+        }
+
+        /* Loading Enhancement */
+        #loader {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        /* Word Count Badge */
+        .word-count {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+        }
+
+        /* Fullscreen Mode */
+        .fullscreen-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 999;
+            background: var(--bg-primary);
+        }
+
+        /* Smooth transitions for all interactive elements */
+        button, select, input {
+            transition: all 0.2s ease;
+        }
+
+        /* Focus states */
+        button:focus, select:focus, input:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        /* Keyboard shortcut hints */
+        .kbd {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            box-shadow: 0 1px 0 #cbd5e1;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div id="loader" class="fixed inset-0 bg-slate-900 bg-opacity-60 flex-col items-center justify-center z-50 hidden">
+        <div class="relative">
+            <div class="w-20 h-20 border-4 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
+            <div class="absolute inset-0 w-20 h-20 border-4 border-t-transparent border-blue-300 rounded-full animate-spin" style="animation-duration: 1.5s; animation-direction: reverse;"></div>
+        </div>
+        <p class="text-white text-lg mt-6 font-medium">Generating your PDF...</p>
+        <p class="text-slate-300 text-sm mt-2">This may take a few moments</p>
+    </div>
+    
+    <div id="toast" class="fixed bottom-8 right-8 py-4 px-6 rounded-xl z-40 flex items-center gap-3">
+        <svg id="toast-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        <p id="toast-message" class="font-medium"></p>
+    </div>
+
+    <div class="flex flex-col h-screen">
+        <header class="z-10 p-4 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                        <path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800">Markdown to PDF</h1>
+                    <p class="text-xs text-slate-500">Professional document converter</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <div class="word-count hidden md:flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                    </svg>
+                    <span id="word-count">0 words</span>
+                    <span class="text-slate-300">•</span>
+                    <span id="char-count">0 chars</span>
+                </div>
+                
+                <div class="h-6 w-px bg-slate-300 hidden md:block"></div>
+                
+                <input type="file" id="file-upload" class="hidden" accept=".md,.txt,.markdown">
+                <button id="upload-btn" data-tooltip="Upload File" class="icon-btn p-2.5 rounded-lg bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                </button>
+                <button id="copy-btn" data-tooltip="Copy Markdown" class="icon-btn p-2.5 rounded-lg bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+                <button id="clear-btn" data-tooltip="Clear Editor" class="icon-btn p-2.5 rounded-lg bg-white text-slate-600 hover:bg-red-50 hover:text-red-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+                
+                <div class="h-6 w-px bg-slate-300"></div>
+                
+                <button id="fullscreen-btn" data-tooltip="Fullscreen" class="icon-btn p-2.5 rounded-lg bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                </button>
+                <button id="style-btn" data-tooltip="Customize Style" class="icon-btn p-2.5 rounded-lg bg-white text-slate-600 hover:bg-purple-50 hover:text-purple-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <input type="text" id="filename" value="document" class="px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 w-36 font-medium" placeholder="File name">
+                <button id="download-pdf" class="btn-primary text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Download PDF
+                </button>
+            </div>
+        </header>
+
+        <main id="main-container" class="flex-grow grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] overflow-hidden relative">
+            <div class="md:hidden flex border-b-2 border-slate-200 bg-white shadow-sm">
+                <button id="editor-tab" class="flex-1 p-3 font-semibold text-sm tab-button active">
+                    ✏️ Editor
+                </button>
+                <button id="preview-tab" class="flex-1 p-3 font-semibold text-sm tab-button">
+                    👁️ Preview
+                </button>
+            </div>
+            
+            <div id="editor-panel" class="h-full flex flex-col bg-white">
+                <textarea id="markdown-input" class="w-full h-full p-8 resize-none focus:outline-none" spellcheck="false" placeholder="Start typing your markdown here..."></textarea>
+            </div>
+
+            <div id="resizer" class="w-3 bg-slate-100 cursor-col-resize hover:bg-slate-200 hidden md:block"></div>
+
+            <div id="preview-panel" class="h-full flex-col bg-slate-100 overflow-y-auto hidden md:flex">
+                <div id="preview-wrapper" class="flex-grow p-4">
+                    <div id="preview-content"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div id="style-panel" class="fixed top-0 right-0 h-full bg-white w-96 z-30 p-8 overflow-y-auto">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">Customize Style</h2>
+                <p class="text-sm text-slate-500 mt-1">Personalize your PDF output</p>
+            </div>
+            <button id="close-style-panel" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-3">Quick Themes</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="theme-preset p-3 rounded-lg border-2 border-slate-200 hover:border-blue-500 transition-all text-center" data-theme="default">
+                        <div class="w-full h-8 bg-gradient-to-br from-white to-slate-50 rounded mb-2"></div>
+                        <span class="text-xs font-medium">Default</span>
+                    </button>
+                    <button class="theme-preset p-3 rounded-lg border-2 border-slate-200 hover:border-blue-500 transition-all text-center" data-theme="academic">
+                        <div class="w-full h-8 bg-gradient-to-br from-blue-50 to-blue-100 rounded mb-2"></div>
+                        <span class="text-xs font-medium">Academic</span>
+                    </button>
+                    <button class="theme-preset p-3 rounded-lg border-2 border-slate-200 hover:border-blue-500 transition-all text-center" data-theme="dark">
+                        <div class="w-full h-8 bg-gradient-to-br from-slate-700 to-slate-900 rounded mb-2"></div>
+                        <span class="text-xs font-medium">Dark</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="border-t pt-6">
+                <div>
+                    <label for="font-family" class="block text-sm font-semibold text-slate-700 mb-2">Font Family</label>
+                    <select id="font-family" class="w-full px-4 py-2.5 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                        <option value="Inter">Inter (Sans-serif)</option>
+                        <option value="Roboto">Roboto (Sans-serif)</option>
+                        <option value="Lato">Lato (Sans-serif)</option>
+                        <option value="Open Sans">Open Sans (Sans-serif)</option>
+                        <option value="Segoe UI">Segoe UI (System)</option>
+                        <option value="Merriweather">Merriweather (Serif)</option>
+                        <option value="Lora">Lora (Serif)</option>
+                        <option value="Roboto Slab">Roboto Slab (Serif)</option>
+                        <option value="JetBrains Mono">JetBrains Mono (Mono)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-3">Colors</label>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="bg-color" class="block text-xs font-medium text-slate-600 mb-2">Page Background</label>
+                        <input type="color" id="bg-color" value="#ffffff" class="w-full h-12 border-2 border-slate-200 rounded-lg cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="text-color" class="block text-xs font-medium text-slate-600 mb-2">Text Color</label>
+                        <input type="color" id="text-color" value="#374151" class="w-full h-12 border-2 border-slate-200 rounded-lg cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="heading-color" class="block text-xs font-medium text-slate-600 mb-2">Headings</label>
+                        <input type="color" id="heading-color" value="#111827" class="w-full h-12 border-2 border-slate-200 rounded-lg cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="code-bg-color" class="block text-xs font-medium text-slate-600 mb-2">Code Background</label>
+                        <input type="color" id="code-bg-color" value="#1f2937" class="w-full h-12 border-2 border-slate-200 rounded-lg cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">PDF Options</h3>
+                <label for="include-grid" class="flex items-center justify-between cursor-pointer">
+                    <span class="text-sm text-slate-600">Include Grid Background</span>
+                    <input type="checkbox" id="include-grid" class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                </label>
+            </div>
+            
+            <div class="pt-4 space-y-2">
+                <button id="reset-styles" class="w-full bg-slate-100 text-slate-700 font-semibold px-4 py-3 rounded-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors">
+                    Reset to Defaults
+                </button>
+            </div>
+            
+            <div class="pt-6 border-t">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">Keyboard Shortcuts</h3>
+                <div class="space-y-2 text-sm text-slate-600">
+                    <div class="flex justify-between items-center">
+                        <span>Save/Download PDF</span>
+                        <span class="kbd">Ctrl+S</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>Copy Markdown</span>
+                        <span class="kbd">Ctrl+Shift+C</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>Toggle Fullscreen</span>
+                        <span class="kbd">F11</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="style-panel-overlay" class="fixed inset-0 bg-black bg-opacity-40 z-20 hidden"></div>
+
+    <script>
+        const markdownInput = document.getElementById('markdown-input');
+        const previewContent = document.getElementById('preview-content');
+        const downloadButton = document.getElementById('download-pdf');
+        const loader = document.getElementById('loader');
+        const filenameInput = document.getElementById('filename');
+        const resizer = document.getElementById('resizer');
+        const mainContainer = document.getElementById('main-container');
+        const editorPanel = document.getElementById('editor-panel');
+        const previewPanel = document.getElementById('preview-panel');
+        const copyBtn = document.getElementById('copy-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const fileUpload = document.getElementById('file-upload');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+        const toastIcon = document.getElementById('toast-icon');
+        const editorTab = document.getElementById('editor-tab');
+        const previewTab = document.getElementById('preview-tab');
+        const stylePanel = document.getElementById('style-panel');
+        const stylePanelOverlay = document.getElementById('style-panel-overlay');
+        const styleBtn = document.getElementById('style-btn');
+        const closeStylePanelBtn = document.getElementById('close-style-panel');
+        const fontFamilySelect = document.getElementById('font-family');
+        const bgColorInput = document.getElementById('bg-color');
+        const textColorInput = document.getElementById('text-color');
+        const headingColorInput = document.getElementById('heading-color');
+        const codeBgColorInput = document.getElementById('code-bg-color');
+        const resetStylesBtn = document.getElementById('reset-styles');
+        const wordCountElem = document.getElementById('word-count');
+        const charCountElem = document.getElementById('char-count');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const themePresets = document.querySelectorAll('.theme-preset');
+        const includeGridCheckbox = document.getElementById('include-grid');
+
+        const defaultStyles = {
+            fontFamily: 'Inter',
+            bgColor: '#ffffff',
+            textColor: '#374151',
+            headingColor: '#111827',
+            codeBgColor: '#1f2937'
+        };
+
+        const themes = {
+            default: {
+                fontFamily: 'Inter',
+                bgColor: '#ffffff',
+                textColor: '#374151',
+                headingColor: '#111827',
+                codeBgColor: '#1f2937'
+            },
+            academic: {
+                fontFamily: 'Merriweather',
+                bgColor: '#fdfbf7',
+                textColor: '#2d3748',
+                headingColor: '#1a202c',
+                codeBgColor: '#2d3748'
+            },
+            dark: {
+                fontFamily: 'Inter',
+                bgColor: '#1e293b',
+                textColor: '#e2e8f0',
+                headingColor: '#f1f5f9',
+                codeBgColor: '#0f172a'
+            }
+        };
+
+        const initialMarkdown = `# Welcome to Smart Markdown to PDF! 🎉
+
+This is a **modern, professional** markdown editor with live preview. Type your content on the left, and see it beautifully formatted on the right.
+
+## ✨ Key Features
+
+- **Live Preview**: Instant visualization of your markdown
+- **Custom Styling**: Personalize fonts, colors, and themes
+- **Resizable Panels**: Drag the divider to adjust your workspace
+- **Smart Page Breaks**: Professional PDF output without awkward splits
+- **Word Count**: Track your writing progress in real-time
+- **Keyboard Shortcuts**: Boost your productivity
+
+---
+
+### 🎨 Customization
+
+Click the ⚙️ **Settings** button to:
+- Choose from preset themes (Default, Academic, Dark)
+- Select your preferred font family
+- Customize all colors
+- Preview changes instantly
+
+### 📝 Markdown Support
+
+We support **GitHub Flavored Markdown** including:
+
+#### Task Lists
+- [x] Core features implemented
+- [x] UI/UX improvements
+- [ ] Add more themes
+- [ ] Export to other formats
+
+#### Code Blocks
+\`\`\`javascript
+// Syntax highlighting included!
+function greet(name) {
+  return \`Hello, \${name}! 👋\`;
+}
+
+console.log(greet('World'));
+\`\`\`
+
+#### Tables
+| Feature | Status | Priority |
+|---------|--------|----------|
+| PDF Export | ✅ Ready | High |
+| Dark Mode | ✅ Ready | Medium |
+| Cloud Save | 🔄 Planned | Low |
+
+#### Blockquotes
+> "The best way to predict the future is to create it."
+> — Peter Drucker
+
+---
+
+### 🚀 Tips for Better PDFs
+
+1. Use **headings** to structure your document
+2. Add images with proper alt text
+3. Break long content with horizontal rules
+4. Use code blocks for technical content
+5. Preview before downloading
+
+#### Page Breaks
+Insert a horizontal rule followed by "break" to force a new page:
+
+\`--- break\`
+
+---
+
+### 📊 Statistics
+
+Your document contains word and character counts displayed in the top bar!
+
+---
+
+**Ready to create something amazing?** Start typing or upload your markdown file! 📄✨
+`;
+
+        marked.setOptions({
+            gfm: true,
+            breaks: false,
+            pedantic: false,
+            smartLists: true,
+            smartypants: false,
+        });
+
+        const updatePreview = () => {
+            const markdownText = markdownInput.value;
+            const processedText = markdownText.replace(/--- break/g, '<div class="page-break"></div>');
+            const rawHtml = marked.parse(processedText);
+            const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+            previewContent.innerHTML = sanitizedHtml;
+            previewContent.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            updateWordCount();
+        };
+
+        const updateWordCount = () => {
+            const text = markdownInput.value.trim();
+            const words = text ? text.split(/\s+/).length : 0;
+            const chars = text.length;
+            wordCountElem.textContent = `${words} word${words !== 1 ? 's' : ''}`;
+            charCountElem.textContent = `${chars} char${chars !== 1 ? 's' : ''}`;
+        };
+
+        const downloadPdf = () => {
+            loader.style.display = 'flex';
+            
+            const previewWrapper = document.getElementById('preview-wrapper');
+            const previewContent = document.getElementById('preview-content');
+            const filename = filenameInput.value.trim() || 'document';
+
+            // Store original styles to revert them later
+            const originalWrapperPadding = previewWrapper.style.padding;
+            const originalWrapperMinHeight = previewWrapper.style.minHeight;
+
+            // Apply temporary styles for export
+            previewWrapper.style.padding = '0';
+            previewWrapper.style.backgroundColor = previewContent.style.getPropertyValue('--page-bg-color');
+            previewContent.classList.add('pdf-export-mode');
+
+            if (!includeGridCheckbox.checked) {
+                previewContent.classList.add('no-grid');
+            }
+
+            const pageHeightInPx = 1056; 
+            const contentHeight = previewWrapper.scrollHeight;
+            const totalPages = Math.ceil(contentHeight / pageHeightInPx);
+            const newMinHeight = totalPages * pageHeightInPx;
+            previewWrapper.style.minHeight = `${newMinHeight}px`;
+            
+            const opt = {
+              margin: 0, 
+              filename: `${filename}.pdf`,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas:  { scale: 2, useCORS: true, logging: false },
+              jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+              pagebreak: { mode: ['css', 'avoid-all'], before: '.page-break' }
+            };
+
+            html2pdf().from(previewWrapper).set(opt).save().then(() => {
+                showToast("PDF downloaded successfully!", "success");
+            }).catch(err => {
+                console.error("PDF generation failed:", err);
+                showToast("Error generating PDF", "error");
+            }).finally(() => {
+                // Revert all temporary styles
+                previewWrapper.style.padding = originalWrapperPadding;
+                previewWrapper.style.backgroundColor = '';
+                previewWrapper.style.minHeight = originalWrapperMinHeight;
+                previewContent.classList.remove('pdf-export-mode');
+                previewContent.classList.remove('no-grid');
+                loader.style.display = 'none';
+            });
+        };
+
+        // Resizer Logic
+        let isResizing = false;
+        resizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isResizing = true;
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+            });
+        });
+
+        function handleMouseMove(e) {
+            if (!isResizing) return;
+            const containerRect = mainContainer.getBoundingClientRect();
+            const newEditorWidth = e.clientX - containerRect.left;
+            const newPreviewWidth = containerRect.right - e.clientX;
+            if (newEditorWidth > 300 && newPreviewWidth > 300) {
+                mainContainer.style.gridTemplateColumns = `${newEditorWidth}px auto ${newPreviewWidth}px`;
+            }
+        }
+
+        function showToast(message, type = "success") {
+            toastMessage.textContent = message;
+            if (type === "success") {
+                toastIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />';
+            } else {
+                toastIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />';
+            }
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        copyBtn.addEventListener('click', () => {
+            if (!markdownInput.value) {
+                showToast("Nothing to copy", "error");
+                return;
+            }
+            navigator.clipboard.writeText(markdownInput.value)
+                .then(() => showToast("Markdown copied to clipboard!"))
+                .catch(() => showToast("Failed to copy", "error"));
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if (confirm("Are you sure you want to clear the editor?")) {
+                markdownInput.value = "";
+                updatePreview();
+                showToast("Editor cleared");
+            }
+        });
+
+        uploadBtn.addEventListener('click', () => fileUpload.click());
+
+        fileUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    markdownInput.value = e.target.result;
+                    updatePreview();
+                    showToast(`${file.name} loaded successfully!`);
+                };
+                reader.readAsText(file);
+            }
+            fileUpload.value = '';
+        });
+        
+        function switchTab(activeTab) {
+            if (activeTab === 'editor') {
+                editorTab.classList.add('active');
+                previewTab.classList.remove('active');
+                editorPanel.classList.remove('hidden');
+                previewPanel.classList.add('hidden');
+            } else {
+                previewTab.classList.add('active');
+                editorTab.classList.remove('active');
+                previewPanel.classList.remove('hidden');
+                previewPanel.classList.add('flex');
+                editorPanel.classList.add('hidden');
+            }
+        }
+        
+        editorTab.addEventListener('click', () => switchTab('editor'));
+        previewTab.addEventListener('click', () => switchTab('preview'));
+
+        const loadedFonts = new Set(['Inter', 'JetBrains Mono']);
+        // --- NEW: List of system fonts to prevent fetching from Google Fonts ---
+        const systemFonts = ['Segoe UI'];
+
+        function loadGoogleFont(fontName) {
+            // --- NEW: Check if the font is a system font ---
+            if (systemFonts.includes(fontName)) {
+                return; // Don't fetch system fonts
+            }
+
+            const fontId = fontName.replace(/\s+/g, '-').toLowerCase();
+            if (loadedFonts.has(fontId)) return;
+
+            const link = document.createElement('link');
+            link.id = `font-${fontId}`;
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/\s/g, '+')}:wght@300;400;500;600;700&display=swap`;
+            document.head.appendChild(link);
+            loadedFonts.add(fontId);
+        }
+        
+        function applyStyles() {
+            const selectedFont = fontFamilySelect.value;
+            loadGoogleFont(selectedFont);
+
+            previewContent.style.setProperty('--font-family', `'${selectedFont}', sans-serif`);
+            previewContent.style.setProperty('--page-bg-color', bgColorInput.value);
+            previewContent.style.setProperty('--text-color', textColorInput.value);
+            previewContent.style.setProperty('--heading-color', headingColorInput.value);
+            previewContent.style.setProperty('--code-bg-color', codeBgColorInput.value);
+        }
+
+        function applyTheme(themeName) {
+            const theme = themes[themeName];
+            fontFamilySelect.value = theme.fontFamily;
+            bgColorInput.value = theme.bgColor;
+            textColorInput.value = theme.textColor;
+            headingColorInput.value = theme.headingColor;
+            codeBgColorInput.value = theme.codeBgColor;
+            applyStyles();
+            showToast(`${themeName.charAt(0).toUpperCase() + themeName.slice(1)} theme applied!`);
+        }
+
+        function resetToDefaultStyles() {
+            applyTheme('default');
+        }
+
+        function openStylePanel() {
+            stylePanel.classList.add('open');
+            stylePanelOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeStylePanel() {
+            stylePanel.classList.remove('open');
+            stylePanelOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // Fullscreen toggle
+        let isFullscreen = false;
+        fullscreenBtn.addEventListener('click', () => {
+            if (!isFullscreen) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                }
+                isFullscreen = true;
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+                isFullscreen = false;
+            }
+        });
+
+        styleBtn.addEventListener('click', openStylePanel);
+        closeStylePanelBtn.addEventListener('click', closeStylePanel);
+        stylePanelOverlay.addEventListener('click', closeStylePanel);
+        
+        [fontFamilySelect, bgColorInput, textColorInput, headingColorInput, codeBgColorInput].forEach(input => {
+            input.addEventListener('input', applyStyles);
+        });
+
+        resetStylesBtn.addEventListener('click', resetToDefaultStyles);
+
+        themePresets.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.dataset.theme;
+                applyTheme(theme);
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + S - Download PDF
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                downloadPdf();
+            }
+            // Ctrl/Cmd + Shift + C - Copy markdown
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'c') {
+                e.preventDefault();
+                copyBtn.click();
+            }
+        });
+
+        // Auto-save to localStorage
+        let saveTimeout;
+        markdownInput.addEventListener('input', () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                localStorage.setItem('markdown-content', markdownInput.value);
+            }, 1000);
+            updatePreview();
+        });
+
+        // Load saved content
+        const savedContent = localStorage.getItem('markdown-content');
+        if (savedContent) {
+            markdownInput.value = savedContent;
+        } else {
+            markdownInput.value = initialMarkdown;
+        }
+
+        downloadButton.addEventListener('click', downloadPdf);
+        
+        applyStyles();
+        updatePreview();
+    </script>
+</body>
+</html>
